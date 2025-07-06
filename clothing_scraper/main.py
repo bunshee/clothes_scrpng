@@ -5,6 +5,10 @@ import sys
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 from clothing_scraper.spiders.pullandbear import PullandbearSpider
+from clothing_scraper.spiders.hm import HmSpider
+from clothing_scraper.spiders.jules import JulesSpider
+from clothing_scraper.spiders.primark import PrimarkSpider
+from clothing_scraper.spiders.canda import CandaSpider
 
 # Add the project root to the Python path to allow for absolute imports
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +19,7 @@ from database.db import create_tables
 def main():
     parser = argparse.ArgumentParser(description="Clothing Scraper and API")
     parser.add_argument("action", choices=["scrape", "api", "setup"], help="Action to perform")
+    parser.add_argument("--spider", help="Specify which spider to run (e.g., pullandbear, hm)")
     args = parser.parse_args()
 
     if args.action == "setup":
@@ -24,7 +29,19 @@ def main():
     elif args.action == "scrape":
         print("Starting the scraper...")
         process = CrawlerProcess(get_project_settings())
-        process.crawl(PullandbearSpider)
+        if args.spider == "pullandbear":
+            process.crawl(PullandbearSpider)
+        elif args.spider == "hm":
+            process.crawl(HmSpider)
+        elif args.spider == "jules":
+            process.crawl(JulesSpider)
+        elif args.spider == "primark":
+            process.crawl(PrimarkSpider)
+        elif args.spider == "canda":
+            process.crawl(CandaSpider)
+        else:
+            print("Please specify a spider to run using --spider (e.g., --spider pullandbear or --spider hm)")
+            return
         process.start()
         print("Scraping complete.")
     elif args.action == "api":

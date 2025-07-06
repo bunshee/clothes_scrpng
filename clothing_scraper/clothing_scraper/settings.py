@@ -51,67 +51,44 @@ ROBOTSTXT_OBEY = False
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-    "clothing_scraper.middlewares.ClothingScraperDownloaderMiddleware": 543,
-    'scrapy_playwright.handler.PlaywrightDownloaderMiddleware': 1000,
+   'clothing_scraper.middlewares.CaptchaMiddleware': 543,
+    'scrapy.downloadermiddlewares.offsite.OffsiteMiddleware': None,
+    'scrapy.downloadermiddlewares.httpauth.HttpAuthMiddleware': None,
+    'scrapy.downloadermiddlewares.downloadtimeout.DownloadTimeoutMiddleware': None,
+    'scrapy.downloadermiddlewares.defaultheaders.DefaultHeadersMiddleware': None,
+    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
+    'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
+    'scrapy.downloadermiddlewares.redirect.MetaRefreshMiddleware': None,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': None,
+    'scrapy.downloadermiddlewares.redirect.RedirectMiddleware': None,
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': None,
+    'scrapy.downloadermiddlewares.stats.DownloaderStats': None,
 }
 
-# Enable or disable extensions
-# See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
-#    "scrapy.extensions.telnet.TelnetConsole": None,
-#}
-
-# Configure item pipelines
-# See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-ITEM_PIPELINES = {
-    "clothing_scraper.pipelines.DatabasePipeline": 300,
+DOWNLOAD_HANDLERS = {
+    "http": "clothing_scraper.downloaders.PyppeteerDownloadHandler",
+    "https": "clothing_scraper.downloaders.PyppeteerDownloadHandler",
 }
 
-# Enable and configure the AutoThrottle extension (disabled by default)
-# See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-#AUTOTHROTTLE_ENABLED = True
-# The initial download delay
-#AUTOTHROTTLE_START_DELAY = 5
-# The maximum download delay to be set in case of high latencies
-#AUTOTHROTTLE_MAX_DELAY = 60
-# The average number of requests Scrapy should be sending in parallel to
-# each remote server
-#AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
-# Enable showing throttling stats for every response received:
-#AUTOTHROTTLE_DEBUG = False
+# Pyppeteer settings
+PYPPETEER_HEADLESS = True
+PYPPETEER_LAUNCH_ARGS = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--window-size=1920,1080',
+]
 
-# Enable and configure HTTP caching (disabled by default)
-# See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-#HTTPCACHE_ENABLED = True
-#HTTPCACHE_EXPIRATION_SECS = 0
-#HTTPCACHE_DIR = "httpcache"
-#HTTPCACHE_IGNORE_HTTP_CODES = []
-#HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
-
-# Set settings for Playwright
-PLAYWRIGHT_BROWSER_TYPE = 'chromium'  # or 'firefox', 'webkit'
-PLAYWRIGHT_LAUNCH_OPTIONS = {
-    'headless': True,
-    'timeout': 20 * 1000,  # 20 seconds
-}
-
-# Proxy settings
-PROXY_USER = 'YOUR_PROXY_USER'
-PROXY_PASS = 'YOUR_PROXY_PASS'
-PROXY_HOST = 'YOUR_PROXY_HOST'
-PROXY_PORT = 'YOUR_PROXY_PORT'
-
-# Database settings
-DATABASE = {
-    'host': 'localhost',
-    'port': 5432,
-    'user': 'postgres',
-    'password': 'my_pass',
-    'dbname': 'postgres'
-}
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0',
+    'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
+]
 
 # To avoid "reactor not restartable" error when running multiple spiders or in certain environments
-#TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
-REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
-TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
-FEED_EXPORT_ENCODING = "utf-8"
+TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
