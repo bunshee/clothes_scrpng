@@ -25,10 +25,8 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 3
-# The download delay setting will honor only one of:
-#CONCURRENT_REQUESTS_PER_DOMAIN = 16
-#CONCURRENT_REQUESTS_PER_IP = 16
+DOWNLOAD_TIMEOUT = 120
+PYPPETEER_NAVIGATION_TIMEOUT = 90000
 
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
@@ -92,3 +90,17 @@ USER_AGENTS = [
 
 # To avoid "reactor not restartable" error when running multiple spiders or in certain environments
 TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
+
+# Enable or disable item pipelines
+# See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+ITEM_PIPELINES = {
+    "clothing_scraper.pipelines.DatabasePipeline": 300,
+}
+
+DATABASE = {
+    'host': 'localhost',
+    'port': 5432,
+    'user': 'postgres',
+    'password': 'my_pass',
+    'dbname': 'postgres'
+}

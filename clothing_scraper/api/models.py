@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 from pydantic import BaseModel
 
 class ProductBase(BaseModel):
@@ -18,7 +19,11 @@ class ProductUpdate(ProductBase):
 
 class ProductResponse(ProductBase):
     id: int
-    scraped_at: str # Will be datetime object from DB, but represented as string for API
+    scraped_at: datetime
 
     class Config:
         from_attributes = True # Allow ORM mode
+
+class DeleteProductResponse(BaseModel):
+    id: int
+    message: str

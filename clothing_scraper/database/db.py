@@ -122,6 +122,20 @@ def delete_product(product_id: int):
         cur.close()
         conn.close()
 
+def delete_all_products():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM products;")
+        conn.commit()
+        return {"message": "All products deleted successfully"}
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+        conn.close()
+
 if __name__ == '__main__':
     print("Creating database tables...")
     create_tables()

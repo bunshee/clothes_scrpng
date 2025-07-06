@@ -10,7 +10,8 @@ from scrapy.utils.project import get_project_settings
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import db
-from api.models import ProductCreate, ProductResponse, ProductUpdate
+from api.models import ProductCreate, ProductResponse, ProductUpdate, DeleteProductResponse
+from api.spiders import SpiderName
 from clothing_scraper.spiders.pullandbear import PullandbearSpider
 from clothing_scraper.spiders.hm import HmSpider
 from clothing_scraper.spiders.jules import JulesSpider
@@ -20,16 +21,16 @@ from clothing_scraper.spiders.canda import CandaSpider
 app = FastAPI()
 executor = ThreadPoolExecutor(max_workers=2) # Adjust max_workers as needed
 
-def run_spider_in_thread(spider_name: str):
+def run_spider_in_thread(spider_name: SpiderName):
     settings = get_project_settings()
     process = CrawlerProcess(settings)
 
     spider_map = {
-        "pullandbear": PullandbearSpider,
-        "hm": HmSpider,
-        "jules": JulesSpider,
-        "primark": PrimarkSpider,
-        "canda": CandaSpider,
+        SpiderName.PULLANDBEAR: PullandbearSpider,
+        SpiderName.HM: HmSpider,
+        SpiderName.JULES: JulesSpider,
+        SpiderName.PRIMARK: PrimarkSpider,
+        SpiderName.CANDA: CandaSpider,
     }
 
     spider_cls = spider_map.get(spider_name)
@@ -40,10 +41,7 @@ def run_spider_in_thread(spider_name: str):
     process.start(stop_after_crawl=True) # Blocks until crawl finishes
 
 @app.post("/scrape/{spider_name}")
-async def scrape_products(spider_name: str):
-    if spider_name not in ["pullandbear", "hm", "jules", "primark", "canda"]:
-        raise HTTPException(status_code=400, detail=f"Invalid spider name: {spider_name}")
-    
+async def scrape_products(spider_name: SpiderName):
     # Submit the blocking spider run to the thread pool
     executor.submit(run_spider_in_thread, spider_name)
     
@@ -73,9 +71,14 @@ def update_product(product_id: int, product: ProductUpdate):
         raise HTTPException(status_code=404, detail="Product not found")
     return db.get_product(updated_id)
 
-@app.delete("/products/{product_id}", response_model=ProductResponse)
+@app.delete("/products/{product_id}", response_model=DeleteProductResponse)
 def delete_product(product_id: int):
     deleted_id = db.delete_product(product_id)
     if deleted_id is None:
         raise HTTPException(status_code=404, detail="Product not found")
     return {"id": deleted_id, "message": "Product deleted successfully"}
+
+@app.delete("/products/")
+def delete_all_products():
+    db.delete_all_products()
+    return {"message": "All products deleted successfully"}

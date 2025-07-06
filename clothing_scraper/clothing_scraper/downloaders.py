@@ -33,7 +33,7 @@ class PyppeteerDownloadHandler:
     async def _launch_browser(self):
         if not self.browser:
             logger.info("Launching Pyppeteer browser...")
-            self.browser = await launch(**self.launch_options)
+            self.browser = await launch(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False, **self.launch_options)
             logger.info("Pyppeteer browser launched.")
 
     def download_request(self, request, spider):
@@ -43,54 +43,45 @@ class PyppeteerDownloadHandler:
         await self._launch_browser()
 
         page = await self.browser.newPage()
+        logger.debug(f"DEBUG: Pyppeteer page created for {request.url}: {page}")
         await page.setViewport({'width': 1920, 'height': 1080})
         await page.setUserAgent(random.choice(self.user_agents))
 
         try:
             logger.info(f"Navigating to {request.url} using Pyppeteer...")
             response = await page.goto(request.url, {'waitUntil': 'domcontentloaded', 'timeout': 60000})
-            
-            # Handle popups if necessary (moved from spider)
-            await self._handle_popups_aggressively(page)
+            await asyncio.sleep(5) # Add a 5-second delay for dynamic content to load
+            # await self._handle_popups_aggressively(page) # Temporarily commented out for debugging
 
             content = await page.content()
             status = response.status
             url = page.url
 
-            # Close the page after processing
-            await page.close()
-
-            return HtmlResponse(
+            response_obj = HtmlResponse(
                 url=url,
                 status=status,
                 body=content.encode('utf-8'),
                 encoding='utf-8',
                 request=request
             )
+            response_obj.meta['page'] = page # Attach the page object to meta
+            return response_obj
         except Exception as e:
             logger.error(f"Error downloading {request.url} with Pyppeteer: {e}")
-            await page.close()
             raise
 
     async def _handle_popups_aggressively(self, page):
-        popups = {
-            "cookie_consent": 'button#onetrust-accept-btn-handler, button:has-text("Accepter les cookies"), button:has-text("Accepter tout")',
-            "newsletter_popup": 'button[aria-label="Fermer"], button.close-button',
-            "localization_popup": 'button:has-text("Non")'
-        }
-        
-        for _ in range(3): # Try a few times
-            for popup_name, selector in popups.items():
-                try:
-                    button = await page.querySelector(selector)
-                    if button and await button.isVisible():
-                        logger.info(f"  Closing {popup_name}...")
-                        await button.click()
-                        await asyncio.sleep(0.5) # Small delay after click
-                        logger.info(f"  {popup_name} closed.")
-                except Exception:
-                    pass # Popup not found or clickable, continue
-            await asyncio.sleep(0.5) # Small delay between attempts
+        # Simplified popup handling: just try to click the main accept button if it exists
+        selector = 'button#onetrust-accept-btn-handler, button:has-text("Accepter les cookies"), button:has-text("Accepter tout")'
+        try:
+            button = await page.querySelector(selector)
+            if button and await button.isVisible():
+                logger.info(f"  Closing cookie consent popup...")
+                await button.click()
+                await asyncio.sleep(0.5) # Small delay after click
+                logger.info(f"  Cookie consent popup closed.")
+        except Exception:
+            pass # Popup not found or clickable, continue
 
     async def close_browser(self):
         if self.browser:

@@ -17,29 +17,26 @@ class DatabasePipeline:
         self.conn.close()
 
     def process_item(self, item, spider):
-        sql = """
-            INSERT INTO products (name, description, price, sizes, colors, image_urls, product_link)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (product_link) DO NOTHING;
-        """
-        price_str = item.get('price')
-        price = None
-        if price_str:
-            price_str = price_str.replace('€', '').replace(',', '.').strip()
-            if price_str:
-                try:
-                    price = float(price_str)
-                except ValueError:
-                    price = None
+        try:
+            sql = """
+                INSERT INTO products (name, description, price, sizes, colors, image_urls, product_link)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (product_link) DO NOTHING;
+            """
+            price = item.get('price')
 
-        self.cur.execute(sql, (
-            item.get('name'),
-            item.get('description'),
-            price,
-            item.get('sizes'),
-            item.get('colors'),
-            item.get('image_urls'),
-            item.get('product_link')
-        ))
-        self.conn.commit()
+            self.cur.execute(sql, (
+                item.get('name'),
+                item.get('description'),
+                price,
+                item.get('sizes'),
+                item.get('colors'),
+                item.get('image_urls'),
+                item.get('product_link')
+            ))
+            self.conn.commit()
+        except psycopg2.Error as e:
+            self.conn.rollback()
+            spider.logger.error(f"Database error: {e}")
+            raise
         return item
