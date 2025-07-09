@@ -1,36 +1,27 @@
-import scrapy
-import logging
-import random
-import re
 import json
-from clothing_scraper.items import ClothingItem # Assuming ClothingItem is defined here or in items.py
+import logging
+
+import scrapy
+
+from clothing_scraper.items import (
+    ClothingItem,  # Assuming ClothingItem is defined here or in items.py
+)
+from api.spiders import PageType
+from api.start_urls_enum import SpiderStartUrls
 
 logger = logging.getLogger(__name__)
+
 
 class PullandbearSpider(scrapy.Spider):
     name = "pullandbear"
     allowed_domains = ["pullandbear.com"]
 
-    async def start(self):
-        start_urls = [
-            "https://www.pullandbear.com/fr/femme/soldes/vetements/pantalons-n7104",
-            "https://www.pullandbear.com/fr/femme/soldes/vetements/robes-et-combinaisons-n7102",
-            "https://www.pullandbear.com/fr/femme/soldes/vetements/t-shirts-et-tops-n7097?celement=1030207188",
-            "https://www.pullandbear.com/fr/femme/soldes/vetements/jupes-et-shorts-n7103",
-            "https://www.pullandbear.com/fr/femme/soldes/chaussures-n7106",
-            "https://www.pullandbear.com/fr/homme/soldes/vetements/t-shirts-et-polos-n7087",
-            "https://www.pullandbear.com/fr/homme/soldes/vetements/bermudas-n7092",
-            "https://www.pullandbear.com/fr/homme/soldes/vetements/jeans-n7818",
-            "https://www.pullandbear.com/fr/homme/soldes/vetements/sweats-n7089",
-            "https://www.pullandbear.com/fr/homme/soldes/chaussures-n7093",
-        ]
+    start_urls = SpiderStartUrls.PULLANDBEAR.value
 
-        for url in start_urls:
+    async def start(self):
+        for url in self.start_urls:
             yield scrapy.Request(
-                url,
-                meta={'pyppeteer': True},
-                callback=self.parse,
-                dont_filter=True
+                url, meta={"pyppeteer": True}, callback=self.parse, dont_filter=True
             )
 
     async def parse(self, response):
@@ -38,56 +29,109 @@ class PullandbearSpider(scrapy.Spider):
             logger.error(f"Access Denied for {response.url}. Aborting this page.")
             return
 
-        product_selector = "grid-product"
+        product_selector = "legacy-product"
         try:
-            await response.meta['page'].waitForSelector(product_selector, {'timeout': 60000})
+            await response.meta["page"].waitForSelector(
+                product_selector, {"timeout": 60000}
+            )
         except Exception as e:
-            logger.warning(f"WARNING: No products found after waiting for selector '{product_selector}' on {response.url}: {e}")
+            logger.warning(
+                f"WARNING: No products found after waiting for selector '{product_selector}' on {response.url}: {e}"
+            )
             return
 
-        # Use page.evaluate to get all product info at once
-        try:
-            products_info = await response.meta['page'].evaluate('''() => {
-                const products = Array.from(document.querySelectorAll('grid-product'));
-                return products.map(p => p.productInfo);
-            }''')
-        except Exception as e:
-            logger.error(f"Error evaluating JavaScript on {response.url}: {e}")
+        # Scroll down to load all products
+        previous_product_count = 0
+        scroll_attempts = 0
+        max_scroll_attempts = 20 # Increased limit to prevent infinite loops
+
+        while True:
+            # Scroll to the bottom
+            await response.meta["page"].evaluate('window.scrollTo(0, document.body.scrollHeight)')
+            await response.meta["page"].waitFor(7000)  # Increased wait time for new content to load
+
+            # Get the current number of products
+            current_products = await response.meta["page"].querySelectorAll(product_selector)
+            current_product_count = len(current_products)
+
+            if current_product_count == previous_product_count:
+                scroll_attempts += 1
+                if scroll_attempts > max_scroll_attempts:
+                    logger.info(f"Reached end of scrolling or max scroll attempts ({max_scroll_attempts}) on {response.url}.")
+                    break
+            else:
+                scroll_attempts = 0 # Reset counter if new content loaded
+            previous_product_count = current_product_count
+
+        # Select all product containers using Pyppeteer (after all scrolling attempts)
+        products = await response.meta["page"].querySelectorAll(product_selector)
+
+        if not products:
+            logger.warning(f"No products found using selector '{product_selector}' on {response.url}.")
             return
 
-        logger.info(f"Found {len(products_info)} products on {response.url}.")
+        logger.info(f"Found {len(products)} products on {response.url}.")
 
-        for product_json in products_info:
-            if not product_json:
-                continue
-
+        for product_element in products:
             item = ClothingItem()
-            item['name'] = product_json.get('name')
-            
-            price = product_json.get('price')
-            if price:
-                # The price is in cents, so we divide by 100
-                item['price'] = float(price) / 100
-            else:
-                item['price'] = None
 
-            product_id = product_json.get('id')
-            if product_id:
-                # Construct the product link from the product id
-                item['product_link'] = f"https://www.pullandbear.com/fr/en/product-p{product_id}.html"
-            else:
-                item['product_link'] = None
+            # Extract product name
+            name_element = await product_element.querySelector('.product-name')
+            item["name"] = (await (await name_element.getProperty('innerText')).jsonValue()).strip() if name_element else None
 
-            xmedia = product_json.get('xmedia')
-            if xmedia:
-                item['image_urls'] = [f"https://static.pullandbear.net/2/photos{i.get('path')}/{i.get('name')}.jpg" for i in xmedia if i.get('path') and i.get('name')]
-            else:
-                item['image_urls'] = []
+            # Extract product link
+            product_link_element = await product_element.querySelector('.carousel-item-container')
+            product_link = await (await product_link_element.getProperty('href')).jsonValue() if product_link_element else None
+            item["product_link"] = response.urljoin(product_link) if product_link else None
 
-            detail = product_json.get('detail', {})
-            item['colors'] = [c.get('name') for c in detail.get('colors', [])]
-            item['sizes'] = [s.get('name') for s in detail.get('sizes', [])]
-            item['description'] = detail.get('longDescription')
+            # Extract image URLs
+            image_elements = await product_element.querySelectorAll('.carousel-item img')
+            image_urls = []
+            for img_element in image_elements:
+                src = await (await img_element.getProperty('src')).jsonValue()
+                if src:
+                    image_urls.append(response.urljoin(src))
+            item["image_urls"] = image_urls if image_urls else []
+
+            # Extract price using page.evaluate on the specific product element
+            price_element = await product_element.querySelector('.price-container price-element')
+            if price_element:
+                try:
+                    # Get innerHTML of the price-element
+                    price_html = await (await price_element.getProperty('innerHTML')).jsonValue()
+                    import re
+                    price_match = re.search(r'(\d+[\.,]\d+)', price_html)
+                    if price_match:
+                        price_str = price_match.group(1).replace(',', '.').strip()
+                        item["price"] = float(price_str)
+                    else:
+                        item["price"] = None
+                except Exception as e:
+                    logger.warning(f"Could not extract price for {item.get('name', 'N/A')}: {e}")
+                    item["price"] = None
+            else:
+                item["price"] = None
+
+            # Extract sizes
+            size_elements = await product_element.querySelectorAll('.c-quick-item--size input')
+            sizes = []
+            for size_element in size_elements:
+                value = await (await size_element.getProperty('value')).jsonValue()
+                if value:
+                    sizes.append(value)
+            item["sizes"] = sizes if sizes else []
+
+            # Extract colors
+            color_elements = await product_element.querySelectorAll('.item-color input')
+            colors = []
+            for color_element in color_elements:
+                title = await (await color_element.getProperty('title')).jsonValue()
+                if title:
+                    colors.append(title)
+            item["colors"] = colors if colors else []
+
+            item["description"] = None # Description is not in this HTML snippet
+            item["page_type"] = PageType.PRODUCT
 
             yield item
             logger.info(f"  -> Processed product: {item.get('name', 'N/A')}")

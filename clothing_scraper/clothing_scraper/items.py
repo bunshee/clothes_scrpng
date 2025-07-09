@@ -8,3 +8,4 @@ class ClothingItem(scrapy.Item):
     image_urls = scrapy.Field()
     product_link = scrapy.Field()
     description = scrapy.Field()
+    page_type = scrapy.Field()

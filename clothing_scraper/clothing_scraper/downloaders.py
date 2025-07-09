@@ -49,8 +49,8 @@ class PyppeteerDownloadHandler:
 
         try:
             logger.info(f"Navigating to {request.url} using Pyppeteer...")
-            response = await page.goto(request.url, {'waitUntil': 'domcontentloaded', 'timeout': 60000})
-            await asyncio.sleep(5) # Add a 5-second delay for dynamic content to load
+            response = await page.goto(request.url, {'waitUntil': 'domcontentloaded', 'timeout': 120000})
+            await asyncio.sleep(10) # Add a 10-second delay for dynamic content to load
             # await self._handle_popups_aggressively(page) # Temporarily commented out for debugging
 
             content = await page.content()

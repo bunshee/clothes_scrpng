@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: my_pass
+      POSTGRES_DB: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://postgres:my_pass@db:5432/postgres
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    entrypoint: /app/docker-entrypoint.sh
+    command: ["api"] # Default command, can be overridden (e.g., "scrape --spider pullandbear")
+
+volumes:
+  db_data:

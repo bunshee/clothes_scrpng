@@ -2,3 +2,6 @@ pyppeteer
 psycopg2-binary
 fastapi
 uvicorn[standard]
+undetected-chromedriver
+python-2captcha
+scrapy
