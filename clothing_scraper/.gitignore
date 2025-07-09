@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+*__pycache__/
+*.pyc
+*.pyd
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+
+# Editors
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Scrapy specific
+*.json
+*.csv
+*.jl
+.scrapy/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Database
+*.sqlite3
+*.db
+
+# Configuration files (if they contain sensitive info or are environment specific)
+# config.yaml # Uncomment if config.yaml should not be tracked
+
+*.html
